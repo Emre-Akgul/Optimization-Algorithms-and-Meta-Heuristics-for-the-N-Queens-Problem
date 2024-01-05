@@ -2,13 +2,24 @@ from random import uniform
 from numpy.random import randint
 
 TOURNAMENT_SIZE = 5
-CHROMOSOME_LENGTH = 8
+CHROMOSOME_LENGTH = 20
 
 class Individual:
 
+    """
     def __init__(self):
         # list data structure containing indexes of queens. Look at the __repr__ method for more info
         self.chromosome = [randint(0, CHROMOSOME_LENGTH) for i in range(CHROMOSOME_LENGTH)]
+    """
+
+    def __init__(self):
+        self.chromosome = [-1] * CHROMOSOME_LENGTH
+        available_positions = list(range(CHROMOSOME_LENGTH))
+
+        for i in range(CHROMOSOME_LENGTH):
+            # Randomly pick an available column for each row
+            chosen_position = randint(len(available_positions))
+            self.chromosome[i] = available_positions.pop(chosen_position)
 
     def fitness(self):
         """"
