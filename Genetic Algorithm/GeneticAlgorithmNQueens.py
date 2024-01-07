@@ -1,8 +1,9 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from random import uniform
 from numpy.random import randint
 
 TOURNAMENT_SIZE = 5
-CHROMOSOME_LENGTH = 20
+CHROMOSOME_LENGTH = 30
 
 class Individual:
 
@@ -115,21 +116,38 @@ class GeneticAlgorithm:
         print("Solution found in generation %d" % generation_count)
         print(pop.get_fittest())
 
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     def evolve_population(self, pop):
         next_population = Population(self.population_size)
 
         # Due to elitism first n fittest individuals are added to next population
-        next_population.individuals.extend(pop.get_fittest_elitism(self.elitism_param))
+        next_population.individuals[:self.elitism_param] = pop.get_fittest_elitism(self.elitism_param)
 
-        # crossover
-        for index in range(self.elitism_param, next_population.get_size()):
-            first = self.random_selection(pop)
-            second = self.random_selection(pop)
-            next_population.save_individual(index, self.crossover(first, second))
+        # Prepare for concurrent crossover
+        crossover_tasks = []
+        with ThreadPoolExecutor() as executor:
+            for index in range(self.elitism_param, next_population.get_size()):
+                first = self.random_selection(pop)
+                second = self.random_selection(pop)
+                task = executor.submit(self.crossover, first, second)
+                crossover_tasks.append(task)
 
-        # mutation
-        for individual in next_population.individuals:
-            self.mutate(individual)
+            # Collecting results from crossover
+            for task in as_completed(crossover_tasks):
+                next_population.save_individual(next_population.get_size() - len(crossover_tasks), task.result())
+                crossover_tasks.remove(task)
+
+        # Prepare for concurrent mutation
+        mutation_tasks = []
+        with ThreadPoolExecutor() as executor:
+            for individual in next_population.individuals:
+                task = executor.submit(self.mutate, individual)
+                mutation_tasks.append(task)
+
+            # Wait for all mutations to complete
+            for task in as_completed(mutation_tasks):
+                pass
 
         return next_population
 
@@ -209,5 +227,5 @@ class GeneticAlgorithm:
 
 
 if __name__ == '__main__':
-    algorithm = GeneticAlgorithm(100)
+    algorithm = GeneticAlgorithm(1000)
     algorithm.run()
